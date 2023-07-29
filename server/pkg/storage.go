@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -52,7 +52,7 @@ func (s *PostgresStore) Init() error {
 
 func (s *PostgresStore) CreateUserTable() error {
 	query := `
-	create table if not exists User(
+	create table if not exists "User"(
 		user_id serial primary key,
 		username varchar(225),
 		password varchar(225),
@@ -67,8 +67,8 @@ func (s *PostgresStore) CreateConversationsTable() error {
 	query := `
 	create table if not exists Conversations(
 		conversation_id serial primary key,
-		foregin key(user) references user(user_id),       
-		foregin key(userFriend) references user(user_id),       
+		"user" integer references "User" (user_id),       
+		userFriend integer references "User" (user_id)
 	)`
 	_, err := s.db.Exec(query)
 	return err
@@ -78,8 +78,8 @@ func (s *PostgresStore) CreateChatMessageTable() error {
 	query := `
 	create table if not exists ChatMessage(
 		Message_id serial primary key,
-		foregin key(Conversation_id) references conversations(conversation_id),       
-		foregin key(Sender_id) references user(user_id),       
+		Conversation_id integer references conversations(conversation_id),       
+		Sender_id integer references "User"(user_id),       
 		Data            text,       
 		SendAt          timestamp 
 	)`
@@ -89,12 +89,11 @@ func (s *PostgresStore) CreateChatMessageTable() error {
 
 func (s *PostgresStore) CreateUserInDB(user *User) error {
 	// we have to create new func newUser to make user and then use this function to add that user to the database
-	query := fmt.Sprintf(`
-	insert into User(username, password, email, createdAt)  
-	values (%v, %v, %v, %v)
-	`, user.UserName, user.Password, user.Email, user.CreatedAt)
+	query := `
+	insert into "User" (username, password, email, createdAt)
+	values ( $1, $2, $3, $4)`
 
-	_, err := s.db.Exec(query)
+	_, err := s.db.Exec(query, user.UserName, user.Password, user.Email, user.CreatedAt)
 	return err
 }
 
@@ -104,14 +103,13 @@ func (s *PostgresStore) DeleteUserFromDB(*User) error {
 
 func (s *PostgresStore) GetUserById(user_id int) (*User, error) {
 	var userFound User
-	query := fmt.Sprintf(`
-	select * from User
-	where user_id=%v 
-	`, user_id)
+	query := `
+	select * from "User"
+	where user_id=$1 `
 
-	err := s.db.QueryRow(query).Scan(&userFound)
+	err := s.db.QueryRow(query, user_id).Scan(&userFound.Id, &userFound.UserName, &userFound.Password, &userFound.Email, &userFound.CreatedAt)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return &userFound, nil
 
@@ -119,15 +117,14 @@ func (s *PostgresStore) GetUserById(user_id int) (*User, error) {
 
 func (s *PostgresStore) GetConversationId(user1_id, user2_id int) (int, error) {
 	var conversation_id int
-	query := fmt.Sprintf(`
+	query := `
 		select conversation_id from Conversations
 		where
-		(user=%v AND userFriend=%v)
+		("user"=$1 AND userFriend=$2)
 		OR
-		(user=%v AND userFriend=%v)
-	`, user1_id, user2_id, user2_id, user1_id)
+		("user"=$3 AND userFriend=$4) `
 
-	err := s.db.QueryRow(query).Scan(&conversation_id)
+	err := s.db.QueryRow(query, user1_id, user2_id, user2_id, user1_id).Scan(&conversation_id)
 	if err != nil {
 		return -1, err
 	}
@@ -136,36 +133,42 @@ func (s *PostgresStore) GetConversationId(user1_id, user2_id int) (int, error) {
 
 func (s *PostgresStore) CheckUservalidityAndGetUser(username, password string) (*User, error) {
 	var exists bool
-	var TrueUser *User
-	query1 := fmt.Sprintf(`
-	select exists (select 1 from Users where username = %v)
-	`, username)
-	err := s.db.QueryRow(query1).Scan(&exists)
+	var TrueUser User
+	query1 := `
+        SELECT EXISTS (SELECT 1 FROM "User" WHERE username = $1)
+    `
+
+	err := s.db.QueryRow(query1, username).Scan(&exists)
 	if err != nil {
-		log.Println("user Doesn't exist in database")
+		log.Println("User doesn't exist in the database")
 		return nil, err
 	}
+
 	if exists {
-		query2 := fmt.Sprintf(`
-		select password from Users where username = %v
-		`, username)
-		err := s.db.QueryRow(query2).Scan(&TrueUser)
+		query2 := `
+            SELECT user_id, username, password, email, createdAt
+			FROM "User"
+			WHERE username = $1
+        `
+
+		err := s.db.QueryRow(query2, username).Scan(&TrueUser.Id, &TrueUser.UserName, &TrueUser.Password, &TrueUser.Email, &TrueUser.CreatedAt)
 
 		if err != nil {
 			return nil, err
 		}
-		return TrueUser, nil
+		if password == TrueUser.Password {
+			return &TrueUser, nil
+		}
 	}
-	return nil, nil
+	return nil, errors.New("Password doesn't match")
 }
 
 func (s *PostgresStore) AddToFriendsList(user *User, friend *User) error {
-	query := fmt.Sprintf(`
-	insert into Conversations(user, userFriend)  
-	values (%v, %v)
-	`, user, friend)
+	query := `
+	insert into Conversations("user", userFriend)
+	values ($1, $2)`
 
-	_, err := s.db.Exec(query)
+	_, err := s.db.Exec(query, user.Id, friend.Id)
 	return err
 }
 
@@ -177,11 +180,11 @@ func (s *PostgresStore) RemoveFriend(user *User, friend *User) error {
 // save recieved message in database
 func (s *PostgresStore) SaveMessageInDB(message *DBChatMessage) error {
 
-	query := fmt.Sprintf(`
-	insert into ChatMessage(Conversation_id, Sender_id, Data, SendAt)  
-	values (%v, %v, %v, %v)
-	`, message.Conversation_id, message.Sender_id, message.Data, message.SendAt)
-	_, err := s.db.Exec(query)
+	query := `
+	insert into ChatMessage(Conversation_id, Sender_id, Data, SendAt)
+	values ($1, $2, $3, $4) `
+
+	_, err := s.db.Exec(query, message.Conversation_id, message.Sender_id, message.Data, message.SendAt)
 
 	return err
 }

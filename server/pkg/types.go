@@ -26,18 +26,18 @@ type DBChatMessage struct {
 	SendAt          time.Time `json:"SendAt"`
 }
 type DataFromTheUserAPI struct {
-	text string
+	Text string
 	// Support for these file types will be added soon
 	// audio
 	// video
 	//pdf
 }
 type UserCredentials struct {
-	cache    string
-	username string
-	password string
-	email    string
-	id       int
+	Cache    string
+	Username string
+	Password string
+	Email    string
+	Id       int
 }
 type message struct {
 	Type                 ApiMessageType     `json:"type"`
@@ -63,8 +63,8 @@ const (
 func newMessage(msgType ApiMessageType, sender int, reciever int, content DataFromTheUserAPI) message {
 	return message{
 		Type:                 msgType,
-		SendersCredentials:   UserCredentials{id: sender},
-		RecieversCredentials: UserCredentials{id: reciever},
+		SendersCredentials:   UserCredentials{Id: sender}, //UserCredentials{id: sender},
+		RecieversCredentials: UserCredentials{Id: reciever},
 		Content:              content,
 		Date:                 time.Now().UTC(),
 		Success:              true,
@@ -74,7 +74,7 @@ func newMessage(msgType ApiMessageType, sender int, reciever int, content DataFr
 func newError(content string) message {
 	return message{
 		Type:    msgErr,
-		Content: DataFromTheUserAPI{text: content},
+		Content: DataFromTheUserAPI{Text: content},
 		Date:    time.Now().UTC(),
 		Success: false,
 	}

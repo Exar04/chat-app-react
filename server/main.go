@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Exar04/chat-app-vue/server/pkg"
+	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -13,10 +14,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Printf("%+v\n", store)
+	fmt.Printf("%+v\n", store)
+	if err := store.Init(); err != nil {
+		log.Fatal(err)
+	}
 
 	api := &pkg.APIServer{
-		Store: store,
+		ClientConnections: make(map[*websocket.Conn]struct{}),
+		Store:             store,
 	}
 
 	http.HandleFunc("/websocket", api.SocketHandler)
