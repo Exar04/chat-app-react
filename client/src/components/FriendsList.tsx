@@ -1,15 +1,52 @@
 import "bootstrap/dist/css/bootstrap.min.css"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import internal from "stream"
+import socket from "../services/webSocketUtil"
+import { MessageApi, ApiMessageType } from "../types/api"
 
-export const FriendsList = () => {
-    const [Friends, setFriendo] = useState(['yash', 'Tanish'])
+interface FriendInfo {
+    id: number;
+    Uid: number;
+    name: string;
+}
+interface FriendsListProps {
+    selectChatId: React.Dispatch<React.SetStateAction<number | undefined>>;
+  }
+
+export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
+// export const FriendsList = (props: MyComponentProps) => {
+
+    const [Friends, setFriendo] = useState<FriendInfo[] >([])
+
+    useEffect(() => {
+      // Listen for messages from the server
+      socket.onmessage = (event) => {
+        const receivedData: MessageApi = JSON.parse(event.data)
+        if (receivedData.type == 'YourFriend') {
+            const FriendForList: FriendInfo = {
+                id: Friends.length, 
+                name: receivedData.othersCredentials.username, 
+                Uid: receivedData.othersCredentials.id}
+            setFriendo([...Friends, FriendForList])
+        }
+      }
+    }, [])
+  
+
+    const SelectThisFriendOnClick = (id: number) => {
+        // selectfriend(id)
+        selectChatId(id)
+    }
+
+
+
+
     const listFriends = Friends.map(friend =>
-
-        <div className="m-1 p-3 bg-dark shadow-lg rounded-5 text-white ">
+        <div key={friend.id} onClick={() =>SelectThisFriendOnClick(friend.id)} className="m-1 p-3 bg-dark shadow-lg rounded-5 text-white ">
             <div className="row ">
                 <img src="blank_profile_picture.webp" className="img-fluid col-3 rounded-circle" alt="" />
                 <div className="col">
-                   {friend} 
+                    {friend.name}
                 </div>
             </div>
         </div>

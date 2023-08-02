@@ -3,7 +3,10 @@ package pkg
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -17,6 +20,7 @@ type Storage interface {
 	RemoveFriend(user *User, friend *User) error
 	CheckUservalidityAndGetUser(username, password string) (*User, error)
 	GetConversationId(user1_id, user2_id int) (int, error)
+	GetInitialMessages(Conversation_id int) ([]message, error)
 }
 
 type PostgresStore struct {
@@ -24,7 +28,15 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=yash password=yash dbname=WebChats sslmode=disable"
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPassword, dbName)
+
+	// connStr := "user=yash password=yash dbname=WebChats sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -187,4 +199,41 @@ func (s *PostgresStore) SaveMessageInDB(message *DBChatMessage) error {
 	_, err := s.db.Exec(query, message.Conversation_id, message.Sender_id, message.Data, message.SendAt)
 
 	return err
+}
+
+func (s *PostgresStore) GetInitialMessages(Conversation_id int) ([]message, error) {
+	var bunchOfMessages []message
+
+	query := `
+	select * from ChatMessage
+	where Conversation_id=$1
+	limit $2
+	`
+	// add get message were date > somedate, thus removing limit and instead replace it with where date > date given
+	rows, err := s.db.Query(query, Conversation_id, 10)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var msg_id int
+		var conv_id int
+		var sender_id int
+		var data string
+		var sendAt time.Time
+
+		err := rows.Scan(&msg_id, &conv_id, &sender_id, &data, &sendAt)
+		if err != nil {
+			return nil, err
+		}
+
+		oso := DataFromTheUserAPI{
+			Text: data,
+		}
+		mes := newMessage(msgChat, sender_id, -1, oso)
+		bunchOfMessages = append(bunchOfMessages, mes)
+	}
+
+	defer rows.Close()
+	return bunchOfMessages, nil
 }

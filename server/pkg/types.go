@@ -39,6 +39,7 @@ type UserCredentials struct {
 	Email    string
 	Id       int
 }
+
 type message struct {
 	Type                 ApiMessageType     `json:"type"`
 	Content              DataFromTheUserAPI `json:"content"`

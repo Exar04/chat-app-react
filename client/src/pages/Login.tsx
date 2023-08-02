@@ -23,7 +23,7 @@ export const Login = () => {
             <button type="submit" className="btn btn-primary m-4 ">Submit</button>
             </div>
             <div className=" d-flex justify-content-center">
-            <a href="#somewhere">New user?</a>
+            <a href="/signIn">New user?</a>
             </div>
         </form>
         </div>

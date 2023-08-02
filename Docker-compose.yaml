@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+  # postgres:
+  #   image: postgres 
+  #   restart: always
+  #   environment:
+  #     POSTGRES_DATABASE: WebChats 
+  #     POSTGRES_USER: yash
+  #     POSTGRES_PASSWORD: yash
+  #   ports:
+  #     - 5432:5432
+  #   volumes:
+  #     - postgres-data:/var/lib/postgres/data
+
+  server:
+    build: ./server
+    ports: 
+      - 8088:8088
+    environment:
+      DB_HOST=docker.for.mac.host.internal
+      DB_PORT=5432
+      DB_USER=yash
+      DB_PASSWORD=yash
+      DB_NAME=WebChats
+
+
+
+
+
+#   adminer:
+#     image: adminer
+#     restart: always
+#     ports:
+#       - 8080:8080
+
+
+# volumes:
+#   postgres-data:

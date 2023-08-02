@@ -1,12 +1,38 @@
 
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useState } from "react"
-export const ChatSection = () => {
+
+
+interface ChatProps {
+    selectedChatId: number | undefined 
+}
+
+
+interface ChatData {
+    data: string;
+    id: number;
+}
+
+
+export  const ChatSection: React.FC<ChatProps> = ({ selectedChatId }) => {
+// export const ChatSection = (selectedChatsId: number) => {
     const divStyle = {
         height: "calc(100% - 100px)"
     }
 
     const friend = "MyFriend"
+
+    // const [ChatMap, setChatMap] = useState ({[id: number]: })
+    const [chatMap, setChatMap] = useState<{ [id: number]: ChatData }>({});
+
+  const addToChatMap = (id: number, data: string) => {
+    setChatMap(prevChatMap => ({
+      ...prevChatMap,
+      [id]: { data, id }
+    }));
+  };
+
+
 
     const [chats, setchats] = useState([
         { id: 1, data: "hi", sender: 0 },
