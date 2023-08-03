@@ -14,7 +14,6 @@ interface FriendsListProps {
   }
 
 export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
-// export const FriendsList = (props: MyComponentProps) => {
 
     const [Friends, setFriendo] = useState<FriendInfo[] >([])
 
@@ -23,11 +22,15 @@ export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
       socket.onmessage = (event) => {
         const receivedData: MessageApi = JSON.parse(event.data)
         if (receivedData.type == 'YourFriend') {
+
             const FriendForList: FriendInfo = {
                 id: Friends.length, 
                 name: receivedData.othersCredentials.username, 
                 Uid: receivedData.othersCredentials.id}
+
             setFriendo([...Friends, FriendForList])
+        } else if(receivedData.type = 'message'){
+            // show the recent message from each chat below friends name in list
         }
       }
     }, [])
