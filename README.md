@@ -1,1 +1,3 @@
 # chat-app-react
+This is applicaion whatsapp clone which was made using golang for backend, react for frontend, bootstrap for styles, ...
+<img src="assets/frontend.png"/>
