@@ -1,4 +1,4 @@
-const socket = new WebSocket('ws://your-websocket-server-url');
+const socket = new WebSocket('ws://localhost:8088/websocket');
 
 socket.onopen = () => {
   console.log('WebSocket connection established.');

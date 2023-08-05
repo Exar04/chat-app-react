@@ -26,6 +26,7 @@ type DBChatMessage struct {
 	SendAt          time.Time `json:"SendAt"`
 }
 type DataFromTheUserAPI struct {
+	m_id int
 	Text string
 	// Support for these file types will be added soon
 	// audio
@@ -39,6 +40,11 @@ type UserCredentials struct {
 	Email    string
 	Id       int
 }
+
+// senderCredentials -
+// used for loggin in user
+// used for signing in user
+// used for checking who send the chatMessage user
 
 type message struct {
 	Type                 ApiMessageType     `json:"type"`

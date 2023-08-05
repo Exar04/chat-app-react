@@ -1,6 +1,12 @@
 
 import "bootstrap/dist/css/bootstrap.min.css"
-export const Login = () => {
+
+interface LoginPageProps {
+    setUserId:  React.Dispatch<React.SetStateAction<number | undefined>>
+}
+// export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, userId }) => {
+export const Login: React.FC<LoginPageProps> = ({setUserId }) => {
+// export const Login = () => {
     return (
         <div>
             <div className="container d-flex justify-content-center min-vh-100 align-items-center">

@@ -1,8 +1,7 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
-import internal from "stream"
 import socket from "../services/webSocketUtil"
-import { MessageApi, ApiMessageType } from "../types/api"
+import { ApiMessage, ApiMessageType } from "../types/api"
 
 interface FriendInfo {
     id: number;
@@ -10,7 +9,7 @@ interface FriendInfo {
     name: string;
 }
 interface FriendsListProps {
-    selectChatId: React.Dispatch<React.SetStateAction<number | undefined>>;
+    selectChatId: React.Dispatch<React.SetStateAction<number | undefined>>
   }
 
 export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
@@ -20,13 +19,13 @@ export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
     useEffect(() => {
       // Listen for messages from the server
       socket.onmessage = (event) => {
-        const receivedData: MessageApi = JSON.parse(event.data)
+        const receivedData: ApiMessage = JSON.parse(event.data)
         if (receivedData.type == 'YourFriend') {
 
             const FriendForList: FriendInfo = {
                 id: Friends.length, 
-                name: receivedData.othersCredentials.username, 
-                Uid: receivedData.othersCredentials.id}
+                name: receivedData.recieversCredentials.username, 
+                Uid: receivedData.recieversCredentials.id}
 
             setFriendo([...Friends, FriendForList])
         } else if(receivedData.type = 'message'){
@@ -47,7 +46,7 @@ export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
     const listFriends = Friends.map(friend =>
         <div key={friend.id} onClick={() =>SelectThisFriendOnClick(friend.id)} className="m-1 p-3 bg-dark shadow-lg rounded-5 text-white ">
             <div className="row ">
-                <img src="blank_profile_picture.webp" className="img-fluid col-3 rounded-circle" alt="" />
+                <img src="blank_profile_picture.webp" className="img-fluid col-3 rounded-circle" />
                 <div className="col">
                     {friend.name}
                 </div>

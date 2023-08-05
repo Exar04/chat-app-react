@@ -1,10 +1,11 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
 import socket from "../services/webSocketUtil"
-import { MessageApi } from "../types/api"
+import { ApiMessage, newApiMessage } from "../types/api"
 
 interface ChatProps {
     selectedChatId: number | undefined
+    UserId: number | undefined 
 }
 
 interface ChatData {
@@ -17,7 +18,7 @@ interface ChatMapType {
     [id: number]: ChatData[];
 }
 
-export const ChatSection: React.FC<ChatProps> = ({ selectedChatId }) => {
+export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => {
     // export const ChatSection = (selectedChatsId: number) => {
     const divStyle = {
         height: "calc(100% - 100px)"
@@ -71,30 +72,41 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId }) => {
     function sendMessage() {
         // send message to server and add it in chatMap
         // addObjectsToChatMap() 
+        const chatObj: ChatData =  {
+            data:message, 
+            m_id:  chatMap[selectedChatId!].length - 1,
+            sender: UserId!}
+        addObjectsToChatMap(selectedChatId!,[chatObj])
     }
-
+    // var msg_idTotal: number
     useEffect(() => {
         // i just want to get the chats if i have not already recieved
         // if i have already requested them don't request to server again
         
         if(selectedChatId ? !chatMap[selectedChatId]: undefined){
-            socket.send("") // create a json and send it to the server requesting the initial message
+
+            // when -1 is used as lastmessage_id it fetches the latest messages if any positive integer is used then messages will be fetched from that id specified 
+            const msg = JSON.stringify(newApiMessage('getChats',-1, UserId!, selectedChatId!))
+            socket.send(msg) // create a json and send it to the server requesting the initial messages of that group/personal chat
         }
 
-
-
     }, [selectedChatId])
+
     useEffect(() => {
 
-            socket.onmessage = (event) => {
-                const receivedData: MessageApi = JSON.parse(event.data)
-                if (receivedData.type == 'message') {
-                    const chatObj: ChatData =  {data:'adsf', m_id: 0 /* configure message id */,sender:receivedData.sendersCredentials.id}
-                    addObjectsToChatMap(selectedChatId ? selectedChatId : -1 ,[chatObj])
-                }
-            }
         // keep getting messages from the server
-    },[])
+        socket.onmessage = (event) => {
+            const receivedData: ApiMessage = JSON.parse(event.data)
+            if (receivedData.type == 'message') {
+                const chatObj: ChatData = {
+                    data: receivedData.content.text,
+                    m_id: receivedData.content.m_id /* configure message id */,
+                    sender: receivedData.sendersCredentials.id
+                }
+                addObjectsToChatMap(selectedChatId!, [chatObj])
+            }
+        }
+    }, [])
 
     return (
         <div className="row col m-4 p-3 bg-secondary-subtle shadow-lg rounded ">
