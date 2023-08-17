@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -18,9 +17,10 @@ type Storage interface {
 	SaveMessageInDB(*DBChatMessage) error
 	AddToFriendsList(user *User, friend *User) error
 	RemoveFriend(user *User, friend *User) error
-	CheckUservalidityAndGetUser(username, password string) (*User, error)
+	CheckUservalidityAndGetUser(id int, password string) (*User, error)
 	GetConversationId(user1_id, user2_id int) (int, error)
-	GetInitialMessages(Conversation_id int) ([]message, error)
+	GetUsersFriends(user_id int) (map[int]int, error)
+	GetChatFromThisChatRoom(convo_id int) ([]DBChatMessage, error)
 }
 
 type PostgresStore struct {
@@ -34,9 +34,11 @@ func NewPostgresStore() (*PostgresStore, error) {
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPassword, dbName)
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
 
 	// connStr := "user=yash password=yash dbname=WebChats sslmode=disable"
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -143,14 +145,14 @@ func (s *PostgresStore) GetConversationId(user1_id, user2_id int) (int, error) {
 	return conversation_id, nil
 }
 
-func (s *PostgresStore) CheckUservalidityAndGetUser(username, password string) (*User, error) {
+func (s *PostgresStore) CheckUservalidityAndGetUser(id int, password string) (*User, error) {
 	var exists bool
 	var TrueUser User
 	query1 := `
-        SELECT EXISTS (SELECT 1 FROM "User" WHERE username = $1)
+        SELECT EXISTS (SELECT 1 FROM "User" WHERE user_id = $1)
     `
 
-	err := s.db.QueryRow(query1, username).Scan(&exists)
+	err := s.db.QueryRow(query1, id).Scan(&exists)
 	if err != nil {
 		log.Println("User doesn't exist in the database")
 		return nil, err
@@ -160,10 +162,10 @@ func (s *PostgresStore) CheckUservalidityAndGetUser(username, password string) (
 		query2 := `
             SELECT user_id, username, password, email, createdAt
 			FROM "User"
-			WHERE username = $1
+			WHERE user_id = $1
         `
 
-		err := s.db.QueryRow(query2, username).Scan(&TrueUser.Id, &TrueUser.UserName, &TrueUser.Password, &TrueUser.Email, &TrueUser.CreatedAt)
+		err := s.db.QueryRow(query2, id).Scan(&TrueUser.Id, &TrueUser.UserName, &TrueUser.Password, &TrueUser.Email, &TrueUser.CreatedAt)
 
 		if err != nil {
 			return nil, err
@@ -201,39 +203,74 @@ func (s *PostgresStore) SaveMessageInDB(message *DBChatMessage) error {
 	return err
 }
 
-func (s *PostgresStore) GetInitialMessages(Conversation_id int) ([]message, error) {
-	var bunchOfMessages []message
+func (s *PostgresStore) GetUsersFriends(user_id int) (map[int]int, error) {
+	// var FriendsListAndConvoId []struct {
+	// 	convo_id   int
+	// 	friends_id int
+	// }
+
+	// In this FriendsListAndConvoId map [int] is friends_id and is mapped to its convo_id
+	// I am using map because i don't want to check on which side is the friends id
+	// I will just dump all of em on key side and duplicates will automatically get removed
+	FriendsListAndConvoId := make(map[int]int)
 
 	query := `
-	select * from ChatMessage
-	where Conversation_id=$1
-	limit $2
+	select * from Conversations 
+	where 
+	"user" = $1 OR userFriend = $2
 	`
-	// add get message were date > somedate, thus removing limit and instead replace it with where date > date given
-	rows, err := s.db.Query(query, Conversation_id, 10)
+	rows, err := s.db.Query(query, user_id, user_id)
+	if err != nil {
+		fmt.Println("err occured in getUsersFriends 1")
+		return nil, err
+	}
+
+	for rows.Next() {
+		var conv_id int
+		var friends_id int
+		var userho int
+
+		err := rows.Scan(&conv_id, &userho, &friends_id)
+		if err != nil {
+			fmt.Println("err occured getUsersFriends 2")
+			return nil, err
+		}
+
+		if userho == user_id {
+			FriendsListAndConvoId[friends_id] = conv_id
+		} else {
+			FriendsListAndConvoId[userho] = conv_id
+		}
+	}
+
+	defer rows.Close()
+	return FriendsListAndConvoId, nil
+}
+
+func (s *PostgresStore) GetChatFromThisChatRoom(convo_id int) ([]DBChatMessage, error) {
+	var FriendsListAndConvoId []DBChatMessage
+
+	query := `
+	select * from ChatMessage 
+	where conversation_id = $1
+	limit $2 
+	`
+	// Later add get chats according to time
+	rows, err := s.db.Query(query, convo_id, 10)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		var msg_id int
-		var conv_id int
-		var sender_id int
-		var data string
-		var sendAt time.Time
+		var dabdab DBChatMessage
 
-		err := rows.Scan(&msg_id, &conv_id, &sender_id, &data, &sendAt)
+		err := rows.Scan(&dabdab.Message_id, &dabdab.Conversation_id, &dabdab.Sender_id, &dabdab.Data, &dabdab.SendAt)
 		if err != nil {
 			return nil, err
 		}
-
-		oso := DataFromTheUserAPI{
-			Text: data,
-		}
-		mes := newMessage(msgChat, sender_id, -1, oso)
-		bunchOfMessages = append(bunchOfMessages, mes)
+		FriendsListAndConvoId = append(FriendsListAndConvoId, dabdab)
 	}
-
 	defer rows.Close()
-	return bunchOfMessages, nil
+
+	return FriendsListAndConvoId, nil
 }

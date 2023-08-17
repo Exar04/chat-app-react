@@ -17,15 +17,16 @@ services:
     ports: 
       - 8088:8088
     environment:
-      DB_HOST=docker.for.mac.host.internal
-      DB_PORT=5432
-      DB_USER=yash
-      DB_PASSWORD=yash
-      DB_NAME=WebChats
-
-
-
-
+      DB_HOST: docker.for.mac.host.internal
+      DB_PORT: 5432
+      DB_USER: yash
+      DB_PASSWORD: yash
+      DB_NAME: WebChats
+  
+  client:
+    build: ./client
+    ports:
+      - 3000:80
 
 #   adminer:
 #     image: adminer

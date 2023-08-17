@@ -67,20 +67,54 @@ func (s *APIServer) handleIncomingMessage(sender *websocket.Conn, msg []byte) er
 	if err != nil {
 		return err
 	}
+	fmt.Println(DataRecieved)
 
 	if DataRecieved.Type == msgLogIn {
 		// authorize the user and log him in
 		user, err := s.Store.CheckUservalidityAndGetUser(
-			DataRecieved.SendersCredentials.Username,
+			DataRecieved.SendersCredentials.Id,
 			DataRecieved.SendersCredentials.Password,
 		)
+
 		if err != nil {
+			// UserLoginFailedMsg := DataFromTheUserAPI{Text: "Failed"} // Text: fmt.Sprintf("%s \n credentials me be wrong", err),
+			// errMsg := newMessage(msgLogIn, -1, -1, UserLoginFailedMsg)
+			errMsg := message{
+				Type:    msgLogIn,
+				Success: false,
+			}
+			fmt.Println(err)
+			sender.WriteJSON(errMsg)
+			return err
 			// send message to client that his crediantials were wrong
 		}
+
 		WebSocketUserId[sender] = user.Id
 		IdToConnect[user.Id] = sender
-		fmt.Println(WebSocketUserId[sender])
-		fmt.Println(IdToConnect[user.Id])
+
+		// UserLoginSuccessfulMsg := newMessage(msgLogIn, -1, -1, DataFromTheUserAPI{Text: "Successful"}) // maybe instead of successful send something else like a token
+		UserLoginSuccessfulMsg := message{
+			Type:    msgLogIn,
+			Success: true,
+		}
+		// send firends list of that user
+		fList, err := s.Store.GetUsersFriends(user.Id)
+		if err != nil {
+			return err
+		}
+
+		sender.WriteJSON(UserLoginSuccessfulMsg)
+
+		for key, value := range fList {
+			fmsg := message{
+				Type:               msgAddFriend,
+				FriendsCredentials: UserCredentials{Id: key},
+				Convo_id:           value,
+			}
+			sender.WriteJSON(fmsg)
+		}
+
+		fmt.Println(WebSocketUserId[sender], "was connected")
 		// create a websocket connection between user and server
 
 	} else if DataRecieved.Type == msgSignIn {
@@ -90,17 +124,21 @@ func (s *APIServer) handleIncomingMessage(sender *websocket.Conn, msg []byte) er
 			DataRecieved.SendersCredentials.Password,
 			DataRecieved.SendersCredentials.Email,
 		)
-		s.Store.CreateUserInDB(newUser)
+		err := s.Store.CreateUserInDB(newUser)
+		if err != nil {
+			UserLoginSuccessfulMsg := newMessage(msgSignIn, -1, -1, DataFromTheUserAPI{Text: "Failed"}) // maybe instead of failed send something else like a token
+			IdToConnect[DataRecieved.SendersCredentials.Id].WriteJSON(UserLoginSuccessfulMsg)
+		}
 
 	} else if DataRecieved.Type == msgChat {
 		// if both the users are online( connected to server via websocket then send the message to them)
-		WebsocketOfReciever, exists := IdToConnect[DataRecieved.RecieversCredentials.Id /*user id of person who we want to send the message*/]
+		WebsocketOfReciever, exists := IdToConnect[DataRecieved.FriendsCredentials.Id /*user id of person who we want to send the message*/]
 		if exists {
 			// send message to reciever
 			s.sendChatMessage(WebsocketOfReciever, DataRecieved.SendersCredentials.Id, DataRecieved.Content.Text)
 		}
 		// save the recieved message in database
-		c_id, err := s.Store.GetConversationId(DataRecieved.SendersCredentials.Id, DataRecieved.RecieversCredentials.Id)
+		c_id, err := s.Store.GetConversationId(DataRecieved.SendersCredentials.Id, DataRecieved.FriendsCredentials.Id)
 		if err != nil {
 			return err
 		}
@@ -111,21 +149,47 @@ func (s *APIServer) handleIncomingMessage(sender *websocket.Conn, msg []byte) er
 		// Add friend to the users friends List
 		user, err := s.Store.GetUserById(DataRecieved.SendersCredentials.Id)
 		if err != nil {
-			fmt.Println("err here 1")
 			return err
 		}
 		friendsId, err := strconv.Atoi(DataRecieved.Content.Text)
 		if err != nil {
-			fmt.Println("err here 2")
 			return err
 		}
 		friend, err := s.Store.GetUserById(friendsId)
 		if err != nil {
-			fmt.Println("err here 3")
 			return err
 		}
 
 		s.Store.AddToFriendsList(user, friend)
+
+		// send client new friends list if friend successfully added else send unsuccessful message
+	} else if DataRecieved.Type == msgUserWantsPreviousChatsFromDb {
+		// send 10 chats of the conversations id user has send
+		con_id, err := s.Store.GetConversationId(DataRecieved.SendersCredentials.Id, DataRecieved.FriendsCredentials.Id)
+		if err != nil {
+			return err
+		}
+
+		messageStuff, err := s.Store.GetChatFromThisChatRoom(con_id)
+		if err != nil {
+			return err
+		}
+
+		for _, data := range messageStuff {
+			sendThismsg := message{
+				Type: msgUserWantsPreviousChatsFromDb,
+				Content: DataFromTheUserAPI{
+					message_id: data.Message_id,
+					Text:       data.Data,
+				},
+				SendersCredentials: UserCredentials{
+					Id: data.Sender_id,
+				},
+				Date: data.SendAt,
+			}
+
+			sender.WriteJSON(sendThismsg)
+		}
 
 	} else if DataRecieved.Type == msgRemoveFriend {
 		// Remove friends from the users friends list
@@ -133,7 +197,6 @@ func (s *APIServer) handleIncomingMessage(sender *websocket.Conn, msg []byte) er
 		log.Println("Error from client:", DataRecieved.Content.Text)
 		// Error from client
 	}
-
 	return nil
 }
 

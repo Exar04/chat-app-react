@@ -13,9 +13,11 @@ export interface UserCredentials {
 
 export interface ApiMessage {
     type: ApiMessageType;
+    convo_id: number;
     content: DataFromTheUserAPI;
     sendersCredentials: UserCredentials;
-    recieversCredentials: UserCredentials; // this field is named recieversCredentials in backend
+    // recieversCredentials: UserCredentials; // this field is named recieversCredentials in backend
+    friendsCredentials: UserCredentials;
     date: Date;
     success: boolean;
 }
@@ -29,14 +31,20 @@ export type ApiMessageType =
     | 'removeFriend'
     | 'error'
     | 'Users'
-    // backend sends these types to client
-    | 'YourFriend'
-    | 'getChats'
+    | 'getPreviousChats'
+    | 'getFriendsList'
 
 
-export function newApiMessage(msgType: ApiMessageType, lastMessage_id: number,su_id: number,ru_id: number): ApiMessage {
+export function newApiMessage(
+    msgType: ApiMessageType, 
+    lastMessage_id: number,
+    su_id: number,
+    ru_id: number, 
+    c_id: number): ApiMessage 
+    {
     const msg: ApiMessage = {
         type: msgType, 
+        convo_id: c_id,
         content:  {
             text: "",
             m_id: -1,
@@ -48,7 +56,7 @@ export function newApiMessage(msgType: ApiMessageType, lastMessage_id: number,su
             email:"", 
             id: su_id, 
         },
-        recieversCredentials: {
+        friendsCredentials: {
             cache: "",
             username:"", 
             password:"", 

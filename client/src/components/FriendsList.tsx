@@ -1,6 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
-import socket from "../services/webSocketUtil"
+import { setupSocketListeners } from "../services/webSocketUtil"
 import { ApiMessage, ApiMessageType } from "../types/api"
 
 interface FriendInfo {
@@ -10,30 +10,29 @@ interface FriendInfo {
 }
 interface FriendsListProps {
     selectChatId: React.Dispatch<React.SetStateAction<number | undefined>>
-  }
+    UserId: number | undefined
+}
 
-export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
+export const FriendsList: React.FC<FriendsListProps> = ({ selectChatId, UserId }) => {
+    const [Friends, setFriendo] = useState<FriendInfo[]>([])
 
-    const [Friends, setFriendo] = useState<FriendInfo[] >([])
-
+    // Listen for messages from the server
     useEffect(() => {
-      // Listen for messages from the server
-      socket.onmessage = (event) => {
-        const receivedData: ApiMessage = JSON.parse(event.data)
-        if (receivedData.type == 'YourFriend') {
+        setupSocketListeners((receivedData: ApiMessage) => {
+            // Your logic for handling messages in Login component
+            console.log('entered')
+            if (receivedData.type === "addFriend") {
+            console.log("Adding friend to friend list ...")
+                const FriendForList: FriendInfo = {
+                    id: Friends.length,
+                    name: receivedData.friendsCredentials.username,
+                    Uid: receivedData.friendsCredentials.id
+                }
 
-            const FriendForList: FriendInfo = {
-                id: Friends.length, 
-                name: receivedData.recieversCredentials.username, 
-                Uid: receivedData.recieversCredentials.id}
-
-            setFriendo([...Friends, FriendForList])
-        } else if(receivedData.type = 'message'){
-            // show the recent message from each chat below friends name in list
-        }
-      }
-    }, [])
-  
+                setFriendo([...Friends, FriendForList])
+            }
+        });
+    }, []);
 
     const SelectThisFriendOnClick = (id: number) => {
         // selectfriend(id)
@@ -41,10 +40,8 @@ export  const FriendsList: React.FC<FriendsListProps> = ({ selectChatId }) => {
     }
 
 
-
-
     const listFriends = Friends.map(friend =>
-        <div key={friend.id} onClick={() =>SelectThisFriendOnClick(friend.id)} className="m-1 p-3 bg-dark shadow-lg rounded-5 text-white ">
+        <div key={friend.id} onClick={() => SelectThisFriendOnClick(friend.id)} className="m-1 p-3 bg-dark shadow-lg rounded-5 text-white ">
             <div className="row ">
                 <img src="blank_profile_picture.webp" className="img-fluid col-3 rounded-circle" />
                 <div className="col">

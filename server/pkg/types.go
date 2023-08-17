@@ -26,12 +26,13 @@ type DBChatMessage struct {
 	SendAt          time.Time `json:"SendAt"`
 }
 type DataFromTheUserAPI struct {
-	m_id int
-	Text string
+	message_id int
+	Text       string
+
 	// Support for these file types will be added soon
 	// audio
 	// video
-	//pdf
+	// pdf
 }
 type UserCredentials struct {
 	Cache    string
@@ -47,34 +48,37 @@ type UserCredentials struct {
 // used for checking who send the chatMessage user
 
 type message struct {
-	Type                 ApiMessageType     `json:"type"`
-	Content              DataFromTheUserAPI `json:"content"`
-	SendersCredentials   UserCredentials    `json:"sendersCredentials"`
-	RecieversCredentials UserCredentials    `json:"recieversCredentials"`
-	Date                 time.Time          `json:"date"`
-	Success              bool               `json:"success"`
+	Type               ApiMessageType     `json:"type"`
+	Convo_id           int                `json:"convo_id"`
+	Content            DataFromTheUserAPI `json:"content"`
+	SendersCredentials UserCredentials    `json:"sendersCredentials"`
+	FriendsCredentials UserCredentials    `json:"friendsCredentials"`
+	Date               time.Time          `json:"date"`
+	Success            bool               `json:"success"`
 }
 
 type ApiMessageType string
 
 const (
-	msgSignIn       ApiMessageType = "signIn"
-	msgLogIn        ApiMessageType = "logIn"
-	msgChat         ApiMessageType = "message"
-	msgAddFriend    ApiMessageType = "addFriend"
-	msgRemoveFriend ApiMessageType = "removeFriend"
-	msgErr          ApiMessageType = "error"
-	msgUserList     ApiMessageType = "Users"
+	msgSignIn                       ApiMessageType = "signIn"
+	msgLogIn                        ApiMessageType = "logIn"
+	msgChat                         ApiMessageType = "message"
+	msgAddFriend                    ApiMessageType = "addFriend" // when client sends this request it adds friend in database when server send it, client adds it to the list
+	msgRemoveFriend                 ApiMessageType = "removeFriend"
+	msgErr                          ApiMessageType = "error"
+	msgUserList                     ApiMessageType = "Users"
+	msgUserWantsPreviousChatsFromDb ApiMessageType = "getPreviousChats"
+	msgUserWantsHisFriendsList      ApiMessageType = "getFriendsList"
 )
 
 func newMessage(msgType ApiMessageType, sender int, reciever int, content DataFromTheUserAPI) message {
 	return message{
-		Type:                 msgType,
-		SendersCredentials:   UserCredentials{Id: sender}, //UserCredentials{id: sender},
-		RecieversCredentials: UserCredentials{Id: reciever},
-		Content:              content,
-		Date:                 time.Now().UTC(),
-		Success:              true,
+		Type:               msgType,
+		SendersCredentials: UserCredentials{Id: sender}, //UserCredentials{id: sender},
+		FriendsCredentials: UserCredentials{Id: reciever},
+		Content:            content,
+		Date:               time.Now().UTC(),
+		Success:            true,
 	}
 }
 

@@ -1,11 +1,11 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
-import socket from "../services/webSocketUtil"
+import { socket, setupSocketListeners } from "../services/webSocketUtil"
 import { ApiMessage, newApiMessage } from "../types/api"
 
 interface ChatProps {
     selectedChatId: number | undefined
-    UserId: number | undefined 
+    UserId: number | undefined
 }
 
 interface ChatData {
@@ -15,6 +15,7 @@ interface ChatData {
 }
 
 interface ChatMapType {
+    // Here id is friends_id/the id we have in our chat and chatData[] the messages associated with that id
     [id: number]: ChatData[];
 }
 
@@ -37,14 +38,6 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => 
         }));
     };
 
-    // const [chats, setchats] = useState([
-    //     { m_id: 1, data: "hi", sender: 0 },
-    //     { m_id: 2, data: "How are you?", sender: 0 },
-    //     { m_id: 3, data: "hi", sender: 1 },
-    //     { m_id: 4, data: "How are you?", sender: 1 },
-    //     { m_id: 5, data: "I am fine", sender: 0 },
-    //     { m_id: 6, data: "I am fine too", sender: 1 },
-    // ])
     var listChats
     if (selectedChatId !== undefined) {
         listChats = chatMap[selectedChatId].map(chat =>
@@ -72,47 +65,66 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => 
     function sendMessage() {
         // send message to server and add it in chatMap
         // addObjectsToChatMap() 
-        const chatObj: ChatData =  {
-            data:message, 
-            m_id:  chatMap[selectedChatId!].length - 1,
-            sender: UserId!}
-        addObjectsToChatMap(selectedChatId!,[chatObj])
+
+
+        const chatObj: ChatData = {
+            data: message,
+            m_id: chatMap[selectedChatId!].length - 1,
+            sender: UserId!
+        }
+        addObjectsToChatMap(selectedChatId!, [chatObj])
+
     }
     // var msg_idTotal: number
     useEffect(() => {
         // i just want to get the chats if i have not already recieved
         // if i have already requested them don't request to server again
-        
-        if(selectedChatId ? !chatMap[selectedChatId]: undefined){
-
+        if (!chatMap[selectedChatId!]) {
             // when -1 is used as lastmessage_id it fetches the latest messages if any positive integer is used then messages will be fetched from that id specified 
-            const msg = JSON.stringify(newApiMessage('getChats',-1, UserId!, selectedChatId!))
+            if (selectedChatId! && selectedChatId != 0) {
+            const msg = JSON.stringify(newApiMessage('getPreviousChats', -1, -1, -1, selectedChatId!))
             socket.send(msg) // create a json and send it to the server requesting the initial messages of that group/personal chat
-        }
 
+            }
+        }
     }, [selectedChatId])
 
     useEffect(() => {
-
-        // keep getting messages from the server
-        socket.onmessage = (event) => {
-            const receivedData: ApiMessage = JSON.parse(event.data)
-            if (receivedData.type == 'message') {
+        setupSocketListeners((receivedData: ApiMessage) => {
+          // Your logic for handling messages in Login component
+            if (receivedData.type === 'message') {
                 const chatObj: ChatData = {
                     data: receivedData.content.text,
                     m_id: receivedData.content.m_id /* configure message id */,
                     sender: receivedData.sendersCredentials.id
                 }
                 addObjectsToChatMap(selectedChatId!, [chatObj])
-            }
-        }
-    }, [])
+            } else if (receivedData.type === 'getPreviousChats') {
+                // even though this looks same as above we are going to change it later
+                // when we add feature of loading previous chats incrementally
+                // then we need to add previous chats before current messages
+                // But for now this is fine
+                const chatObj: ChatData = {
+                    data: receivedData.content.text,
+                    m_id: receivedData.content.m_id /* configure message id */,
+                    sender: receivedData.sendersCredentials.id
+                }
 
+                addObjectsToChatMap(selectedChatId!,[chatObj])
+            }
+        });
+      }, []);
+    // useEffect(() => {
+    //     // keep getting messages from the server
+    //     socket.onmessage = (event) => {
+    //     }
+    // }, [])
     return (
         <div className="row col m-4 p-3 bg-secondary-subtle shadow-lg rounded ">
             <div className="p-2 bg-black text-white rounded-4">{friend}</div>
             <div className="m-0 p-1  w-100 overflow-y-scroll container" style={divStyle}>
-                {listChats}
+                {selectedChatId ? listChats :
+                    <div className=" fs-2 text-secondary  ">No room selected</div>}
             </div>
             <div className="input-group mb-3 p-4">
                 <input value={message} onChange={e => getChangedMessageFromInputField(e.target.value)}
