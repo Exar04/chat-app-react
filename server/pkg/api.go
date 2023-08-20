@@ -102,7 +102,6 @@ func (s *APIServer) handleIncomingMessage(sender *websocket.Conn, msg []byte) er
 		if err != nil {
 			return err
 		}
-
 		sender.WriteJSON(UserLoginSuccessfulMsg)
 
 		for key, value := range fList {

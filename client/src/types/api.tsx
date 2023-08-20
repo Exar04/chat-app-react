@@ -33,6 +33,7 @@ export type ApiMessageType =
     | 'Users'
     | 'getPreviousChats'
     | 'getFriendsList'
+    | 'null'
 
 
 export function newApiMessage(

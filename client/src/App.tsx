@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ChatPage } from './pages/ChatPage';
 import { Login } from './pages/Login';
 import { SignIn } from './pages/SignIn';
+import { ApiMessage } from './types/api';
 
 function App() {
   // const [UserId, setUserId] = useState<number>() 
   // const [UserName, setUserName] = useState<string>('')
+
 
   return (
     <div className="App">

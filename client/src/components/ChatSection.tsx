@@ -1,11 +1,12 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
-import { socket, setupSocketListeners } from "../services/webSocketUtil"
+import { useSocketSubscribe, useWebSocketSender } from "../services/sox"
 import { ApiMessage, newApiMessage } from "../types/api"
 
 interface ChatProps {
     selectedChatId: number | undefined
     UserId: number | undefined
+    // receivedData: ApiMessage | undefined
 }
 
 interface ChatData {
@@ -24,8 +25,8 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => 
     const divStyle = {
         height: "calc(100% - 100px)"
     }
-
     const friend = "MyFriend"
+    const sendThisMessageToServer = useWebSocketSender()
 
     const [chatMap, setChatMap] = useState<ChatMapType>({});
     // useEffect to get initial messages from db and later from the other client via websocket 
@@ -66,7 +67,8 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => 
         // send message to server and add it in chatMap
         // addObjectsToChatMap() 
 
-
+        const msg = newApiMessage('message',-1,UserId!,selectedChatId!,-1)
+        sendThisMessageToServer(msg)
         const chatObj: ChatData = {
             data: message,
             m_id: chatMap[selectedChatId!].length - 1,
@@ -82,38 +84,69 @@ export const ChatSection: React.FC<ChatProps> = ({ selectedChatId, UserId }) => 
         if (!chatMap[selectedChatId!]) {
             // when -1 is used as lastmessage_id it fetches the latest messages if any positive integer is used then messages will be fetched from that id specified 
             if (selectedChatId! && selectedChatId != 0) {
-            const msg = JSON.stringify(newApiMessage('getPreviousChats', -1, -1, -1, selectedChatId!))
-            socket.send(msg) // create a json and send it to the server requesting the initial messages of that group/personal chat
+            // const msg = JSON.stringify(newApiMessage('getPreviousChats', -1, -1, -1, selectedChatId!))
+            // socket.send(msg) // create a json and send it to the server requesting the initial messages of that group/personal chat
+            sendThisMessageToServer(newApiMessage('getPreviousChats', -1, -1, -1, selectedChatId!))
 
             }
         }
     }, [selectedChatId])
 
-    useEffect(() => {
-        setupSocketListeners((receivedData: ApiMessage) => {
-          // Your logic for handling messages in Login component
-            if (receivedData.type === 'message') {
+
+        const handleSocketUpdate = (receivedData: ApiMessage) => {
+            if (receivedData!.type === 'message') {
                 const chatObj: ChatData = {
-                    data: receivedData.content.text,
-                    m_id: receivedData.content.m_id /* configure message id */,
-                    sender: receivedData.sendersCredentials.id
+                    data: receivedData!.content.text,
+                    m_id: receivedData!.content.m_id /* configure message id */,
+                    sender: receivedData!.sendersCredentials.id
                 }
                 addObjectsToChatMap(selectedChatId!, [chatObj])
-            } else if (receivedData.type === 'getPreviousChats') {
+            } else if (receivedData!.type === 'getPreviousChats') {
                 // even though this looks same as above we are going to change it later
                 // when we add feature of loading previous chats incrementally
                 // then we need to add previous chats before current messages
                 // But for now this is fine
                 const chatObj: ChatData = {
-                    data: receivedData.content.text,
-                    m_id: receivedData.content.m_id /* configure message id */,
-                    sender: receivedData.sendersCredentials.id
+                    data: receivedData!.content.text,
+                    m_id: receivedData!.content.m_id /* configure message id */,
+                    sender: receivedData!.sendersCredentials.id
                 }
 
                 addObjectsToChatMap(selectedChatId!,[chatObj])
             }
-        });
-      }, []);
+        };
+        useSocketSubscribe(handleSocketUpdate);
+
+    // useEffect(() => {
+    //     // if (!socket.current) return
+    //     if (socket && socket.current) {
+
+
+    //     socket.current.onmessage = (event: MessageEvent) => {
+    //         const receivedData: ApiMessage = JSON.parse(event.data);
+    //         if (receivedData!.type === 'message') {
+    //             const chatObj: ChatData = {
+    //                 data: receivedData!.content.text,
+    //                 m_id: receivedData!.content.m_id /* configure message id */,
+    //                 sender: receivedData!.sendersCredentials.id
+    //             }
+    //             addObjectsToChatMap(selectedChatId!, [chatObj])
+    //         } else if (receivedData!.type === 'getPreviousChats') {
+    //             // even though this looks same as above we are going to change it later
+    //             // when we add feature of loading previous chats incrementally
+    //             // then we need to add previous chats before current messages
+    //             // But for now this is fine
+    //             const chatObj: ChatData = {
+    //                 data: receivedData!.content.text,
+    //                 m_id: receivedData!.content.m_id /* configure message id */,
+    //                 sender: receivedData!.sendersCredentials.id
+    //             }
+
+    //             addObjectsToChatMap(selectedChatId!,[chatObj])
+    //         }
+    //     }}
+    //   }, [socket]);
+
     // useEffect(() => {
     //     // keep getting messages from the server
     //     socket.onmessage = (event) => {

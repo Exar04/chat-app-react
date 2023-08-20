@@ -23,10 +23,10 @@ services:
       DB_PASSWORD: yash
       DB_NAME: WebChats
   
-  client:
-    build: ./client
-    ports:
-      - 3000:80
+  # client:
+  #   build: ./client
+  #   ports:
+  #     - 3000:80
 
 #   adminer:
 #     image: adminer

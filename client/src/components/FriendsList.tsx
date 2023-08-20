@@ -1,6 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useEffect, useState } from "react"
-import { setupSocketListeners } from "../services/webSocketUtil"
+import { useSocketSubscribe, useWebSocketSender } from "../services/sox";
 import { ApiMessage, ApiMessageType } from "../types/api"
 
 interface FriendInfo {
@@ -11,18 +11,16 @@ interface FriendInfo {
 interface FriendsListProps {
     selectChatId: React.Dispatch<React.SetStateAction<number | undefined>>
     UserId: number | undefined
+    // receivedData: ApiMessage | undefined
 }
 
 export const FriendsList: React.FC<FriendsListProps> = ({ selectChatId, UserId }) => {
     const [Friends, setFriendo] = useState<FriendInfo[]>([])
-
+    const sendThisMessageToServer = useWebSocketSender()
     // Listen for messages from the server
-    useEffect(() => {
-        setupSocketListeners((receivedData: ApiMessage) => {
-            // Your logic for handling messages in Login component
-            console.log('entered')
+        const handleSocketUpdate = (receivedData: ApiMessage) => {
             if (receivedData.type === "addFriend") {
-            console.log("Adding friend to friend list ...")
+                console.log("Adding friend to friend list ...")
                 const FriendForList: FriendInfo = {
                     id: Friends.length,
                     name: receivedData.friendsCredentials.username,
@@ -31,8 +29,9 @@ export const FriendsList: React.FC<FriendsListProps> = ({ selectChatId, UserId }
 
                 setFriendo([...Friends, FriendForList])
             }
-        });
-    }, []);
+        };
+        useSocketSubscribe(handleSocketUpdate);
+        ////////////////////////////////////////////////
 
     const SelectThisFriendOnClick = (id: number) => {
         // selectfriend(id)
